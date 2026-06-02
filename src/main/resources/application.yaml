@@ -2,10 +2,10 @@ spring:
   application:
     name: sentinel
   datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:postgresql://localhost:5432/sentinel
+    driver-class-name: org.postgresql.Driver
+    username: sentinel
+    password: sentinel
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -14,3 +14,4 @@ spring:
       hibernate:
         hbm2ddl:
           auto: create-drop
+        dialect: org.hibernate.dialect.PostgreSQLDialect
