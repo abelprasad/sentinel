@@ -14,7 +14,6 @@ spring:
       hibernate:
         hbm2ddl:
           auto: create-drop
-        dialect: org.hibernate.dialect.PostgreSQLDialect
   config:
     import: optional:application-secrets.yaml
 
