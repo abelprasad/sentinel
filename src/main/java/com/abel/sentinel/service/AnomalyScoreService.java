@@ -5,6 +5,8 @@ import com.abel.sentinel.model.AnomalyScore;
 import com.abel.sentinel.model.Baseline;
 import com.abel.sentinel.model.FlightEvent;
 import com.abel.sentinel.repository.AnomalyScoreRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -13,6 +15,8 @@ import java.util.Optional;
 
 @Service
 public class AnomalyScoreService {
+
+    private static final Logger log = LoggerFactory.getLogger(AnomalyScoreService.class);
 
     private final AnomalyScoreRepository anomalyScoreRepository;
     private final BaselineService baselineService;
@@ -33,14 +37,18 @@ public class AnomalyScoreService {
 
         Baseline baseline = baselineOpt.get();
 
+        log.info("Scoring event {} against baseline: alt={}, speed={}, heading={}",
+                event.getId(), baseline.getAvgAltitude(), baseline.getAvgSpeed(), baseline.getAvgHeading());
+
         double altitudeDev  = deviation(event.getAltitude(), baseline.getAvgAltitude(), 10000.0);
         double speedDev     = deviation(event.getSpeed(), baseline.getAvgSpeed(), 200.0);
         double headingDev   = deviation(event.getHeading(), baseline.getAvgHeading(), 180.0);
         double latDev       = deviation(event.getLat(), baseline.getAvgLat(), 10.0);
         double lonDev       = deviation(event.getLon(), baseline.getAvgLon(), 10.0);
 
-        double score = (altitudeDev + speedDev + headingDev + latDev + lonDev) / 5.0;
-        score = Math.min(score, 1.0);
+        double score = Math.max(Math.max(Math.max(altitudeDev, speedDev), headingDev), Math.max(latDev, lonDev));
+
+        log.info("Anomaly score for event {}: {}", event.getId(), score);
 
         if (score < ANOMALY_THRESHOLD) {
             return Optional.empty();

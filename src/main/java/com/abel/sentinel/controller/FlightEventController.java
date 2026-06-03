@@ -38,9 +38,8 @@ public class FlightEventController {
         AircraftEntity entity = entityRepository.findById(saved.getEntityId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entity not found"));
 
-        baselineService.calculate(entity).ifPresent(baseline -> {
-            anomalyScoreService.score(entity, saved);
-        });
+        anomalyScoreService.score(entity, saved);
+        baselineService.calculate(entity);
 
         return saved;
     }
