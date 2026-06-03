@@ -7,6 +7,7 @@ import com.abel.sentinel.service.BaselineService;
 import com.abel.sentinel.service.FlightEventService;
 import com.abel.sentinel.repository.AircraftEntityRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -32,6 +33,7 @@ public class FlightEventController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
     public FlightEvent create(@RequestBody FlightEvent event) {
         FlightEvent saved = flightEventService.create(event);
 
@@ -45,11 +47,13 @@ public class FlightEventController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ANALYST', 'OPERATOR', 'ADMIN')")
     public List<FlightEvent> getAll() {
         return flightEventService.getAll();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ANALYST', 'OPERATOR', 'ADMIN')")
     public FlightEvent getById(@PathVariable Long id) {
         return flightEventService.getById(id);
     }
