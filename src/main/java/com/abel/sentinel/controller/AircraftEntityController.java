@@ -7,6 +7,7 @@ import com.abel.sentinel.service.AircraftEntityService;
 import com.abel.sentinel.service.AnomalyScoreService;
 import com.abel.sentinel.service.BaselineService;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -29,21 +30,25 @@ public class AircraftEntityController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public AircraftEntity create(@RequestBody AircraftEntity entity) {
         return service.create(entity);
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ANALYST', 'OPERATOR', 'ADMIN')")
     public List<AircraftEntity> getAll() {
         return service.getAll();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ANALYST', 'OPERATOR', 'ADMIN')")
     public AircraftEntity getById(@PathVariable Long id) {
         return service.getById(id);
     }
 
     @GetMapping("/{id}/baseline")
+    @PreAuthorize("hasAnyRole('ANALYST', 'OPERATOR', 'ADMIN')")
     public Baseline getBaseline(@PathVariable Long id) {
         AircraftEntity entity = service.getById(id);
         return baselineService.getBaseline(entity)
@@ -51,6 +56,7 @@ public class AircraftEntityController {
     }
 
     @GetMapping("/{id}/anomalies")
+    @PreAuthorize("hasAnyRole('ANALYST', 'OPERATOR', 'ADMIN')")
     public List<AnomalyScore> getAnomalies(@PathVariable Long id) {
         AircraftEntity entity = service.getById(id);
         return anomalyScoreService.getAnomaliesForEntity(entity);
