@@ -25,6 +25,8 @@ public class AdsbIngestionService {
     private final AircraftEntityRepository entityRepository;
     private final FlightEventRepository eventRepository;
     private final ObjectMapper objectMapper;
+    private final BaselineService baselineService;
+    private final AnomalyScoreService anomalyScoreService;
 
     @Value("${adsb.url}")
     private String adsbUrl;
@@ -51,10 +53,9 @@ public class AdsbIngestionService {
             int ingested = 0;
             for (AdsbAircraft ac : aircraft) {
                 if (ac.getHex() == null || ac.getLat() == null || ac.getLon() == null) {
-                    continue; // skip incomplete records
+                    continue;
                 }
 
-                // find or create entity
                 AircraftEntity entity = entityRepository
                         .findByIcaoHex(ac.getHex())
                         .orElseGet(() -> {
@@ -66,13 +67,11 @@ public class AdsbIngestionService {
                             return entityRepository.save(newEntity);
                         });
 
-                // parse altitude -- "ground" becomes 0.0
                 Double altitude = 0.0;
                 if (ac.getAltBaro() instanceof Number) {
                     altitude = ((Number) ac.getAltBaro()).doubleValue();
                 }
 
-                // build and save event
                 FlightEvent event = new FlightEvent();
                 event.setEntityId(entity.getId());
                 event.setTimestamp(Instant.now());
@@ -81,7 +80,11 @@ public class AdsbIngestionService {
                 event.setAltitude(altitude);
                 event.setSpeed(ac.getGs());
                 event.setHeading(ac.getTrack());
-                eventRepository.save(event);
+                FlightEvent saved = eventRepository.save(event);
+
+                baselineService.calculate(entity);
+                anomalyScoreService.score(entity, saved);
+
                 ingested++;
             }
 
