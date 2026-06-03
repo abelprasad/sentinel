@@ -8,4 +8,5 @@ import java.util.List;
 public interface AnomalyScoreRepository extends JpaRepository<AnomalyScore, Long> {
     List<AnomalyScore> findByEntityOrderByFlaggedAtDesc(AircraftEntity entity);
     List<AnomalyScore> findByEntityAndScoreGreaterThanOrderByFlaggedAtDesc(AircraftEntity entity, Double threshold);
+    List<AnomalyScore> findByScoreGreaterThanOrderByFlaggedAtDesc(Double threshold);
 }

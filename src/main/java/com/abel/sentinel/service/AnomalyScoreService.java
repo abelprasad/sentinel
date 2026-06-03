@@ -68,8 +68,12 @@ public class AnomalyScoreService {
         return anomalyScoreRepository.findByEntityOrderByFlaggedAtDesc(entity);
     }
 
+    public List<AnomalyScore> getAllAnomalies() {
+        return anomalyScoreRepository.findAll();
+    }
+
     public List<AnomalyScore> getHighSeverityAnomalies() {
-        return anomalyScoreRepository.findByEntityAndScoreGreaterThanOrderByFlaggedAtDesc(null, ANOMALY_THRESHOLD);
+        return anomalyScoreRepository.findByScoreGreaterThanOrderByFlaggedAtDesc(ANOMALY_THRESHOLD);
     }
 
     private double deviation(Double actual, Double baseline, double maxExpectedDelta) {
