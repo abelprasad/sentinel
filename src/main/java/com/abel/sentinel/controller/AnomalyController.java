@@ -2,6 +2,7 @@ package com.abel.sentinel.controller;
 
 import com.abel.sentinel.model.AnomalyScore;
 import com.abel.sentinel.service.AnomalyScoreService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +18,7 @@ public class AnomalyController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ANALYST', 'OPERATOR', 'ADMIN')")
     public List<AnomalyScore> getAll(@RequestParam(required = false) String severity) {
         if ("HIGH".equalsIgnoreCase(severity)) {
             return anomalyScoreService.getHighSeverityAnomalies();
