@@ -15,7 +15,14 @@ spring:
         hbm2ddl:
           auto: create-drop
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  config:
+    import: optional:application-secrets.yaml
 
 adsb:
   url: https://opendata.adsb.fi/api/v2/lat/40.0/lon/-75.1/dist/25
   poll-interval-ms: 30000
+
+llm:
+  provider: groq
+  model: llama-3.3-70b-versatile
+  api-key: ${LLM_API_KEY:placeholder}
