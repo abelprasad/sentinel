@@ -20,10 +20,14 @@ public class AnomalyScoreService {
 
     private final AnomalyScoreRepository anomalyScoreRepository;
     private final BaselineService baselineService;
+    private final LlmService llmService;
 
-    public AnomalyScoreService(AnomalyScoreRepository anomalyScoreRepository, BaselineService baselineService) {
+    public AnomalyScoreService(AnomalyScoreRepository anomalyScoreRepository,
+                               BaselineService baselineService,
+                               LlmService llmService) {
         this.anomalyScoreRepository = anomalyScoreRepository;
         this.baselineService = baselineService;
+        this.llmService = llmService;
     }
 
     public static final double ANOMALY_THRESHOLD = 0.7;
@@ -54,11 +58,25 @@ public class AnomalyScoreService {
             return Optional.empty();
         }
 
+        // try Groq first, fall back to rule-based
+        String explanation = null;
+        try {
+            explanation = llmService.summarizeAnomaly(entity, event, baseline, score);
+            if (explanation != null) {
+                log.info("Groq explanation for event {}: {}", event.getId(), explanation);
+            }
+        } catch (Exception e) {
+            log.warn("LLM call failed for event {}, using fallback: {}", event.getId(), e.getMessage());
+        }
+        if (explanation == null) {
+            explanation = buildExplanation(altitudeDev, speedDev, headingDev, score);
+        }
+
         AnomalyScore anomaly = new AnomalyScore();
         anomaly.setEntity(entity);
         anomaly.setEvent(event);
         anomaly.setScore(score);
-        anomaly.setExplanation(buildExplanation(altitudeDev, speedDev, headingDev, score));
+        anomaly.setExplanation(explanation);
         anomaly.setFlaggedAt(Instant.now());
 
         return Optional.of(anomalyScoreRepository.save(anomaly));
