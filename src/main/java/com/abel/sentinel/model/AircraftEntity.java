@@ -15,4 +15,7 @@ public class AircraftEntity {
     private String type;
     private String callsign;
     private String metadata;
+
+    @Column(unique = true)
+    private String icaoHex;
 }

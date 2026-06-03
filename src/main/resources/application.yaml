@@ -15,3 +15,7 @@ spring:
         hbm2ddl:
           auto: create-drop
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+adsb:
+  url: https://opendata.adsb.fi/api/v2/lat/40.0/lon/-75.1/dist/25
+  poll-interval-ms: 30000
