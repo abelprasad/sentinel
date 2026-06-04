@@ -52,40 +52,44 @@ public class AdsbIngestionService {
 
             int ingested = 0;
             for (AdsbAircraft ac : aircraft) {
-                if (ac.getHex() == null || ac.getLat() == null || ac.getLon() == null) {
-                    continue;
+                try {
+                    if (ac.getHex() == null || ac.getLat() == null || ac.getLon() == null) {
+                        continue;
+                    }
+
+                    AircraftEntity entity = entityRepository
+                            .findByIcaoHex(ac.getHex())
+                            .orElseGet(() -> {
+                                AircraftEntity newEntity = new AircraftEntity();
+                                newEntity.setIcaoHex(ac.getHex());
+                                newEntity.setCallsign(ac.getFlight() != null ? ac.getFlight().trim() : ac.getHex());
+                                newEntity.setType("AIRCRAFT");
+                                newEntity.setMetadata("auto-registered via ADS-B ingestion");
+                                return entityRepository.save(newEntity);
+                            });
+
+                    Double altitude = 0.0;
+                    if (ac.getAltBaro() instanceof Number) {
+                        altitude = ((Number) ac.getAltBaro()).doubleValue();
+                    }
+
+                    FlightEvent event = new FlightEvent();
+                    event.setEntityId(entity.getId());
+                    event.setTimestamp(Instant.now());
+                    event.setLat(ac.getLat());
+                    event.setLon(ac.getLon());
+                    event.setAltitude(altitude);
+                    event.setSpeed(ac.getGs());
+                    event.setHeading(ac.getTrack());
+                    FlightEvent saved = eventRepository.save(event);
+
+                    baselineService.calculate(entity);
+                    anomalyScoreService.score(entity, saved);
+
+                    ingested++;
+                } catch (Exception e) {
+                    log.warn("Skipping aircraft {}: {}", ac.getHex() != null ? ac.getHex() : "unknown", e.getMessage());
                 }
-
-                AircraftEntity entity = entityRepository
-                        .findByIcaoHex(ac.getHex())
-                        .orElseGet(() -> {
-                            AircraftEntity newEntity = new AircraftEntity();
-                            newEntity.setIcaoHex(ac.getHex());
-                            newEntity.setCallsign(ac.getFlight() != null ? ac.getFlight().trim() : ac.getHex());
-                            newEntity.setType("AIRCRAFT");
-                            newEntity.setMetadata("auto-registered via ADS-B ingestion");
-                            return entityRepository.save(newEntity);
-                        });
-
-                Double altitude = 0.0;
-                if (ac.getAltBaro() instanceof Number) {
-                    altitude = ((Number) ac.getAltBaro()).doubleValue();
-                }
-
-                FlightEvent event = new FlightEvent();
-                event.setEntityId(entity.getId());
-                event.setTimestamp(Instant.now());
-                event.setLat(ac.getLat());
-                event.setLon(ac.getLon());
-                event.setAltitude(altitude);
-                event.setSpeed(ac.getGs());
-                event.setHeading(ac.getTrack());
-                FlightEvent saved = eventRepository.save(event);
-
-                baselineService.calculate(entity);
-                anomalyScoreService.score(entity, saved);
-
-                ingested++;
             }
 
             log.info("ADS-B ingestion complete -- {} events saved", ingested);

@@ -7,9 +7,10 @@ spring:
     username: sentinel
     password: sentinel
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: create-drop
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         hbm2ddl:
@@ -25,3 +26,12 @@ llm:
   provider: groq
   model: llama-3.3-70b-versatile
   api-key: ${LLM_API_KEY:placeholder}
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss} %clr(%-5level){cyan} %clr(%-30logger{30}){blue} %msg%n"
+  level:
+    root: WARN
+    com.abel.sentinel: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN
