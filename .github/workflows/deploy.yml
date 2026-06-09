@@ -47,6 +47,7 @@ jobs:
           context: ./sentinel-ui
           push: true
           tags: abelprasad/sentinel-ui:latest
+          no-cache: true
 
       - name: Set up Tailscale
         uses: tailscale/github-action@v2
