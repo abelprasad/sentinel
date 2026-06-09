@@ -9,12 +9,8 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: false
-    properties:
-      hibernate:
-        hbm2ddl:
-          auto: create-drop
   config:
     import: optional:application-secrets.yaml
 

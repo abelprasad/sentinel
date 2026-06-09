@@ -4,6 +4,7 @@ import com.abel.sentinel.model.FlightEvent;
 import com.abel.sentinel.repository.FlightEventRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -16,6 +17,9 @@ public class FlightEventService {
     }
 
     public FlightEvent create(FlightEvent event) {
+        if (event.getTimestamp() == null) {
+            event.setTimestamp(Instant.now());
+        }
         return repository.save(event);
     }
 
