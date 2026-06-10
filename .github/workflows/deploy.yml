@@ -14,13 +14,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: abelprasad/sentinel
+          ref: main
           path: sentinel
 
       - name: Checkout frontend
         uses: actions/checkout@v4
         with:
           repository: abelprasad/sentinel-ui
+          ref: main
           path: sentinel-ui
+          token: ${{ secrets.GH_PAT }}
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -40,6 +43,7 @@ jobs:
           context: ./sentinel
           push: true
           tags: abelprasad/sentinel-backend:latest
+          no-cache: true
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
@@ -63,5 +67,5 @@ jobs:
           script: |
             cd ~/sentinel
             docker compose pull
-            docker compose up -d
+            docker compose up -d --force-recreate
             docker image prune -f
