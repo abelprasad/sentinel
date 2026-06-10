@@ -27,6 +27,7 @@ public class AdsbIngestionService {
     private final ObjectMapper objectMapper;
     private final BaselineService baselineService;
     private final AnomalyScoreService anomalyScoreService;
+    private final IcaoClassificationService classificationService;
 
     @Value("${adsb.url}")
     private String adsbUrl;
@@ -65,6 +66,7 @@ public class AdsbIngestionService {
                                 newEntity.setCallsign(ac.getFlight() != null ? ac.getFlight().trim() : ac.getHex());
                                 newEntity.setType("AIRCRAFT");
                                 newEntity.setMetadata("auto-registered via ADS-B ingestion");
+                                newEntity.setClassification(classificationService.classify(ac.getHex()));
                                 return entityRepository.save(newEntity);
                             });
 
