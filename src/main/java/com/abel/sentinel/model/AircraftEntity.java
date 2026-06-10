@@ -18,4 +18,6 @@ public class AircraftEntity {
 
     @Column(unique = true)
     private String icaoHex;
+
+    private String classification;
 }
