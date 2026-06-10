@@ -22,6 +22,9 @@ public class AnomalyScore {
     private FlightEvent event;
 
     private Double score;
+
+    @Column(columnDefinition = "TEXT")
     private String explanation;
+
     private Instant flaggedAt;
 }

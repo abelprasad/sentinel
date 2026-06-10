@@ -58,6 +58,13 @@ public class AnomalyScoreService {
             return Optional.empty();
         }
 
+        // dedup -- skip if this entity was already flagged in the last 5 minutes
+        Instant fiveMinutesAgo = Instant.now().minusSeconds(300);
+        if (anomalyScoreRepository.existsByEntityAndFlaggedAtAfter(entity, fiveMinutesAgo)) {
+            log.info("Skipping duplicate anomaly for entity {} -- already flagged within 5 minutes", entity.getId());
+            return Optional.empty();
+        }
+
         // try Groq first, fall back to rule-based
         String explanation = null;
         try {
