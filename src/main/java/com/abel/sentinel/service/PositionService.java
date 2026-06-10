@@ -8,6 +8,8 @@ import com.abel.sentinel.repository.AnomalyScoreRepository;
 import com.abel.sentinel.repository.FlightEventRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,15 +29,20 @@ public class PositionService {
     }
 
     public List<PositionDTO> getCurrentPositions() {
-        List<FlightEvent> latest = flightEventRepository.findLatestPerEntity();
+        Instant since = Instant.now().minus(5, ChronoUnit.MINUTES);
+        List<FlightEvent> latest = flightEventRepository.findLatestPerEntitySince(since);
 
         return latest.stream()
                 .map(event -> {
                     AircraftEntity entity = entityRepository.findById(event.getEntityId()).orElse(null);
                     if (entity == null) return null;
 
-                    boolean anomalous = !anomalyScoreRepository
-                            .findByEntityOrderByFlaggedAtDesc(entity).isEmpty();
+                    // only flag as anomalous if scored in the last 5 minutes
+                    Instant recentThreshold = Instant.now().minus(5, ChronoUnit.MINUTES);
+                    boolean anomalous = anomalyScoreRepository
+                            .findByEntityOrderByFlaggedAtDesc(entity)
+                            .stream()
+                            .anyMatch(a -> a.getFlaggedAt().isAfter(recentThreshold));
 
                     return new PositionDTO(
                             entity.getId(),
