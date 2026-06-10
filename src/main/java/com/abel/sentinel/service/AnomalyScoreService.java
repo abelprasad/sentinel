@@ -5,8 +5,8 @@ import com.abel.sentinel.model.AnomalyScore;
 import com.abel.sentinel.model.Baseline;
 import com.abel.sentinel.model.FlightEvent;
 import com.abel.sentinel.repository.AnomalyScoreRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -14,79 +14,67 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class AnomalyScoreService {
-
-    private static final Logger log = LoggerFactory.getLogger(AnomalyScoreService.class);
 
     private final AnomalyScoreRepository anomalyScoreRepository;
     private final BaselineService baselineService;
     private final LlmService llmService;
 
-    public AnomalyScoreService(AnomalyScoreRepository anomalyScoreRepository,
-                               BaselineService baselineService,
-                               LlmService llmService) {
-        this.anomalyScoreRepository = anomalyScoreRepository;
-        this.baselineService = baselineService;
-        this.llmService = llmService;
-    }
-
     public static final double ANOMALY_THRESHOLD = 0.7;
 
     public Optional<AnomalyScore> score(AircraftEntity entity, FlightEvent event) {
         Optional<Baseline> baselineOpt = baselineService.getBaseline(entity);
-
-        if (baselineOpt.isEmpty()) {
-            return Optional.empty();
-        }
+        if (baselineOpt.isEmpty()) return Optional.empty();
 
         Baseline baseline = baselineOpt.get();
 
         log.info("Scoring event {} against baseline: alt={}, speed={}, heading={}",
                 event.getId(), baseline.getAvgAltitude(), baseline.getAvgSpeed(), baseline.getAvgHeading());
 
-        double altitudeDev  = deviation(event.getAltitude(), baseline.getAvgAltitude(), 10000.0);
-        double speedDev     = deviation(event.getSpeed(), baseline.getAvgSpeed(), 200.0);
-        double headingDev   = deviation(event.getHeading(), baseline.getAvgHeading(), 180.0);
-        double latDev       = deviation(event.getLat(), baseline.getAvgLat(), 10.0);
-        double lonDev       = deviation(event.getLon(), baseline.getAvgLon(), 10.0);
+        double altitudeDev = deviation(event.getAltitude(), baseline.getAvgAltitude(), 10000.0);
+        double speedDev    = deviation(event.getSpeed(),    baseline.getAvgSpeed(),    200.0);
+        double headingDev  = deviation(event.getHeading(),  baseline.getAvgHeading(),  180.0);
+        double latDev      = deviation(event.getLat(),      baseline.getAvgLat(),      10.0);
+        double lonDev      = deviation(event.getLon(),      baseline.getAvgLon(),      10.0);
 
         double score = Math.max(Math.max(Math.max(altitudeDev, speedDev), headingDev), Math.max(latDev, lonDev));
 
         log.info("Anomaly score for event {}: {}", event.getId(), score);
 
-        if (score < ANOMALY_THRESHOLD) {
-            return Optional.empty();
-        }
+        if (score < ANOMALY_THRESHOLD) return Optional.empty();
 
-        // dedup -- skip if this entity was already flagged in the last 5 minutes
+        // dedup -- skip if already flagged in the last 5 minutes
         Instant fiveMinutesAgo = Instant.now().minusSeconds(300);
         if (anomalyScoreRepository.existsByEntityAndFlaggedAtAfter(entity, fiveMinutesAgo)) {
             log.info("Skipping duplicate anomaly for entity {} -- already flagged within 5 minutes", entity.getId());
             return Optional.empty();
         }
 
-        // try Groq first, fall back to rule-based
-        String explanation = null;
-        try {
-            explanation = llmService.summarizeAnomaly(entity, event, baseline, score);
-            if (explanation != null) {
-                log.info("Groq explanation for event {}: {}", event.getId(), explanation);
-            }
-        } catch (Exception e) {
-            log.warn("LLM call failed for event {}, using fallback: {}", event.getId(), e.getMessage());
-        }
-        if (explanation == null) {
-            explanation = buildExplanation(altitudeDev, speedDev, headingDev, score);
-        }
-
+        // save immediately with rule-based explanation so ingestion thread is never blocked
+        String fallback = buildExplanation(altitudeDev, speedDev, headingDev, score);
         AnomalyScore anomaly = new AnomalyScore();
         anomaly.setEntity(entity);
         anomaly.setEvent(event);
         anomaly.setScore(score);
-        anomaly.setExplanation(explanation);
+        anomaly.setExplanation(fallback);
         anomaly.setFlaggedAt(Instant.now());
+        AnomalyScore saved = anomalyScoreRepository.save(anomaly);
 
-        return Optional.of(anomalyScoreRepository.save(anomaly));
+        // fire Groq async -- updates explanation in DB when it comes back
+        llmService.summarizeAnomaly(entity, event, baseline, score).thenAccept(explanation -> {
+            if (explanation != null && !explanation.isBlank()) {
+                saved.setExplanation(explanation);
+                anomalyScoreRepository.save(saved);
+                log.info("Groq explanation saved for anomaly {}: {}", saved.getId(), explanation);
+            }
+        }).exceptionally(ex -> {
+            log.warn("Async Groq update failed for anomaly {}: {}", saved.getId(), ex.getMessage());
+            return null;
+        });
+
+        return Optional.of(saved);
     }
 
     public List<AnomalyScore> getAnomaliesForEntity(AircraftEntity entity) {

@@ -12,8 +12,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.*;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +35,8 @@ public class GroqLlmService implements LlmService {
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     @Override
-    public String summarizeAnomaly(AircraftEntity entity, FlightEvent event, Baseline baseline, double score) {
+    @Async
+    public CompletableFuture<String> summarizeAnomaly(AircraftEntity entity, FlightEvent event, Baseline baseline, double score) {
         try {
             String prompt = buildPrompt(entity, event, baseline, score);
 
@@ -55,11 +59,13 @@ public class GroqLlmService implements LlmService {
             ResponseEntity<String> response = new RestTemplate().postForEntity(GROQ_URL, request, String.class);
 
             JsonNode root = objectMapper.readTree(response.getBody());
-            return root.path("choices").get(0).path("message").path("content").asText();
+            String explanation = root.path("choices").get(0).path("message").path("content").asText();
+            log.info("Groq explanation for {} ({}): {}", entity.getCallsign(), entity.getIcaoHex(), explanation);
+            return CompletableFuture.completedFuture(explanation);
 
         } catch (Exception e) {
-            log.warn("Groq summarization failed: {}", e.getMessage());
-            return null;
+            log.warn("Groq summarization failed for {}: {}", entity.getIcaoHex(), e.getMessage());
+            return CompletableFuture.completedFuture(null);
         }
     }
 
