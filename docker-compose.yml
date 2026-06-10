@@ -5,10 +5,28 @@ services:
       POSTGRES_DB: sentinel
       POSTGRES_USER: sentinel
       POSTGRES_PASSWORD: sentinel
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-
+    restart: unless-stopped
+  backend:
+    image: abelprasad/sentinel-backend:latest
+    ports:
+      - "8888:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/sentinel
+      SPRING_DATASOURCE_USERNAME: sentinel
+      SPRING_DATASOURCE_PASSWORD: sentinel
+      LLM_API_KEY: ${LLM_API_KEY}
+      CORS_ALLOWED_ORIGIN: http://100.98.50.85:3000
+    depends_on:
+      - db
+    restart: unless-stopped
+  frontend:
+    image: abelprasad/sentinel-ui:latest
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
 volumes:
   pgdata:
