@@ -15,4 +15,6 @@ public interface FlightEventRepository extends JpaRepository<FlightEvent, Long> 
 
     @Query("SELECT e FROM FlightEvent e WHERE e.id = (SELECT MAX(e2.id) FROM FlightEvent e2 WHERE e2.entityId = e.entityId) AND e.timestamp > :since")
     List<FlightEvent> findLatestPerEntitySince(@Param("since") Instant since);
+
+    int deleteByTimestampBefore(Instant cutoff);
 }

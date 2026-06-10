@@ -11,4 +11,5 @@ public interface AnomalyScoreRepository extends JpaRepository<AnomalyScore, Long
     List<AnomalyScore> findByEntityAndScoreGreaterThanOrderByFlaggedAtDesc(AircraftEntity entity, Double threshold);
     List<AnomalyScore> findByScoreGreaterThanOrderByFlaggedAtDesc(Double threshold);
     boolean existsByEntityAndFlaggedAtAfter(AircraftEntity entity, Instant since);
+    int deleteByFlaggedAtBefore(Instant cutoff);
 }
