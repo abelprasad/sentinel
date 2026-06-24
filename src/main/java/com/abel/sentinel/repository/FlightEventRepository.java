@@ -17,4 +17,7 @@ public interface FlightEventRepository extends JpaRepository<FlightEvent, Long> 
     List<FlightEvent> findLatestPerEntitySince(@Param("since") Instant since);
 
     int deleteByTimestampBefore(Instant cutoff);
+
+    @Query("SELECT COUNT(DISTINCT e.entityId) FROM FlightEvent e WHERE e.timestamp > :since")
+    long countDistinctEntityIdSince(@Param("since") Instant since);
 }
