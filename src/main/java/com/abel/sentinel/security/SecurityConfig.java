@@ -35,6 +35,7 @@ public class SecurityConfig {
                             "http://100.98.50.85:80",
                             "http://100.98.50.85:3000",
                             "http://100.98.50.85:8888",
+                            "https://sentinel.abelprasad.dev",
                             System.getenv().getOrDefault("CORS_ALLOWED_ORIGIN", "http://localhost:4200")
                     ));
                     config.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
@@ -46,7 +47,7 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/health").permitAll()
+                        .requestMatchers("/auth/**", "/health", "/public/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
