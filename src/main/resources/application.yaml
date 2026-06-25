@@ -36,4 +36,3 @@ logging:
     com.abel.sentinel: INFO
     org.springframework.web: WARN
     org.hibernate: WARN
-    org.flywaydb: DEBUG
