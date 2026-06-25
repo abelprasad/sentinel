@@ -1,0 +1,1 @@
+ALTER TABLE anomalies ALTER COLUMN explanation TYPE TEXT;
