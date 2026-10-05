@@ -2,6 +2,7 @@ package com.abel.sentinel.controller;
 
 import com.abel.sentinel.dto.PositionDTO;
 import com.abel.sentinel.model.AnomalyScore;
+import com.abel.sentinel.model.FlightEvent;
 import com.abel.sentinel.model.PublicStatusDTO;
 import com.abel.sentinel.repository.AircraftEntityRepository;
 import com.abel.sentinel.repository.AnomalyScoreRepository;
@@ -45,6 +46,7 @@ public class PublicController {
         List<AnomalyScore> recent = anomalyRepo.findTop10ByOrderByFlaggedAtDesc();
         List<PublicStatusDTO.RecentAnomaly> recentAnomalies = recent.stream().map(a ->
                 new PublicStatusDTO.RecentAnomaly(
+                        a.getId(),
                         a.getEntity().getCallsign(),
                         a.getEntity().getIcaoHex(),
                         a.getEntity().getClassification(),
@@ -69,5 +71,58 @@ public class PublicController {
 
         return new PublicStatusDTO(activeTracksNow, anomaliesLastHour, totalEntities,
                 recentAnomalies, publicPositions);
+    }
+
+    @GetMapping("/track/{anomalyId}")
+    public TrackDTO getTrack(@PathVariable Long anomalyId) {
+        AnomalyScore anomaly = anomalyRepo.findById(anomalyId).orElseThrow();
+        Instant flaggedAt = anomaly.getFlaggedAt();
+        Instant start = flaggedAt.minus(30, ChronoUnit.MINUTES);
+        Instant end = flaggedAt.plus(5, ChronoUnit.MINUTES);
+
+        List<FlightEvent> events = eventRepo
+                .findByEntityIdAndTimestampBetweenOrderByTimestampAsc(
+                        anomaly.getEntity().getId(), start, end);
+
+        List<TrackDTO.TrackPoint> points = events.stream().map(e ->
+                new TrackDTO.TrackPoint(
+                        e.getTimestamp().toString(),
+                        e.getLat(), e.getLon(),
+                        e.getAltitude(), e.getSpeed(), e.getHeading()
+                )).toList();
+
+        FlightEvent trigger = anomaly.getEvent();
+        return new TrackDTO(
+                anomaly.getId(),
+                anomaly.getEntity().getCallsign(),
+                anomaly.getEntity().getIcaoHex(),
+                anomaly.getScore(),
+                anomaly.getExplanation(),
+                flaggedAt.toString(),
+                trigger != null ? trigger.getLat() : null,
+                trigger != null ? trigger.getLon() : null,
+                points
+        );
+    }
+
+    public record TrackDTO(
+            Long anomalyId,
+            String callsign,
+            String icaoHex,
+            double score,
+            String explanation,
+            String flaggedAt,
+            Double triggerLat,
+            Double triggerLon,
+            List<TrackPoint> points
+    ) {
+        public record TrackPoint(
+                String timestamp,
+                Double lat,
+                Double lon,
+                Double altitude,
+                Double speed,
+                Double heading
+        ) {}
     }
 }

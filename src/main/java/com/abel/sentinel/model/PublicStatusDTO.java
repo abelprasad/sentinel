@@ -10,6 +10,7 @@ public record PublicStatusDTO(
         List<PublicPosition> positions
 ) {
     public record RecentAnomaly(
+            Long id,
             String callsign,
             String icaoHex,
             String classification,
