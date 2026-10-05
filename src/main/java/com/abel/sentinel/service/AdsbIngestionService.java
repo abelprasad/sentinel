@@ -39,10 +39,13 @@ public class AdsbIngestionService {
             String response = restTemplate.getForObject(adsbUrl, String.class);
 
             JsonNode root = objectMapper.readTree(response);
-            JsonNode acArray = root.path("aircraft");
+            JsonNode acArray = root.path("ac");
+            if (!acArray.isArray()) {
+                acArray = root.path("aircraft");
+            }
 
             if (!acArray.isArray()) {
-                log.warn("adsb.fi response missing 'aircraft' array");
+                log.warn("ADS-B response missing 'ac'/'aircraft' array");
                 return;
             }
 
