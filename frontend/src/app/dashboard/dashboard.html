@@ -1,0 +1,150 @@
+<div class="dashboard">
+  <header class="topbar">
+    <span class="wordmark">SENTINEL</span>
+    <div class="topbar-center">
+      <div class="countdown-wrap">
+        <div class="countdown-bar" [style.width.%]="(countdown / 30) * 100"></div>
+      </div>
+      <span class="countdown-label">{{ countdown }}s</span>
+    </div>
+    <div class="topbar-right">
+      <div class="stat">Entries <span>{{ entities.length }}</span></div>
+      <div class="stat">Anomalies <span>{{ anomalies.length }}</span></div>
+      <button class="sim-toggle" (click)="toggleSimPanel()" [class.active]="simPanelOpen">[ SIM ]</button>
+      <div class="live-indicator"></div>
+    </div>
+  </header>
+
+  <!-- Simulation panel -->
+  <div class="sim-panel" *ngIf="simPanelOpen">
+    <div class="sim-panel-header">
+      <span class="sim-title">Simulation Mode</span>
+      <button class="sim-close" (click)="toggleSimPanel()">✕</button>
+    </div>
+
+    <div class="sim-section">
+      <div class="sim-section-label">Quick Fire</div>
+      <p class="sim-desc">Picks a random active entity, injects a guaranteed score-1.0 anomaly.</p>
+      <button class="sim-btn-primary" (click)="quickFire()" [disabled]="simLoading">
+        {{ simLoading ? 'Injecting...' : 'Inject Anomaly' }}
+      </button>
+    </div>
+
+    <div class="sim-divider"></div>
+
+    <div class="sim-section">
+      <div class="sim-section-label">Custom Injection</div>
+
+      <div class="sim-field">
+        <label>Entity</label>
+        <select [(ngModel)]="simEntityId">
+          <option [value]="null" disabled>Select aircraft</option>
+          <option *ngFor="let e of entities" [value]="e.id">
+            {{ e.callsign || e.icaoHex }}
+          </option>
+        </select>
+      </div>
+
+      <div class="sim-field">
+        <label>Altitude &nbsp;<span class="sim-val">{{ simAltitude | number:'1.0-0' }} ft</span></label>
+        <input type="range" min="0" max="50000" step="500" [(ngModel)]="simAltitude" />
+      </div>
+
+      <div class="sim-field">
+        <label>Speed &nbsp;<span class="sim-val">{{ simSpeed | number:'1.0-0' }} kts</span></label>
+        <input type="range" min="0" max="600" step="10" [(ngModel)]="simSpeed" />
+      </div>
+
+      <div class="sim-field">
+        <label>Heading &nbsp;<span class="sim-val">{{ simHeading | number:'1.0-0' }}°</span></label>
+        <input type="range" min="0" max="360" step="5" [(ngModel)]="simHeading" />
+      </div>
+
+      <button class="sim-btn-secondary" (click)="injectCustom()" [disabled]="simLoading || !simEntityId">
+        {{ simLoading ? 'Injecting...' : 'Inject Custom' }}
+      </button>
+    </div>
+
+    <div class="sim-result" *ngIf="simResult">{{ simResult }}</div>
+  </div>
+
+  <div class="main">
+
+    <!-- Detail panel (left) -->
+    <aside class="detail-panel" *ngIf="selectedEntity">
+      <div class="detail-header">
+        <div class="detail-callsign">{{ selectedEntity.callsign || selectedEntity.icaoHex }}</div>
+        <button class="close-btn" (click)="closeDetail()">✕</button>
+      </div>
+      <div class="detail-meta">
+        <div class="detail-row">
+          <span class="detail-label">ICAO</span>
+          <span class="detail-value">{{ selectedEntity.icaoHex }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">ALT</span>
+          <span class="detail-value">{{ selectedEntity.altitude.toLocaleString() ?? '--' }} ft</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">SPD</span>
+          <span class="detail-value">{{ selectedEntity.speed.toFixed(0) ?? '--' }} kts</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">HDG</span>
+          <span class="detail-value">{{ selectedEntity.heading.toFixed(0) ?? '--' }}°</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">STATUS</span>
+          <span class="detail-value" [class.anomalous-badge]="selectedEntity.anomalous">
+            {{ selectedEntity.anomalous ? 'ANOMALOUS' : 'NORMAL' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="detail-section-label">Recent Anomalies</div>
+
+      <div *ngIf="detailLoading" class="empty-state">Loading...</div>
+      <div *ngIf="!detailLoading && selectedAnomalies.length === 0" class="empty-state">No anomalies on record</div>
+
+      <div *ngFor="let a of selectedAnomalies" class="anomaly-card" [ngClass]="severityClass(a.score)">
+        <div class="card-top">
+          <span class="score-inline" [ngClass]="severityClass(a.score)">{{ (a.score * 100).toFixed(0) }}%</span>
+          <span class="card-time">{{ a.flaggedAt | date:'HH:mm:ss' }}</span>
+        </div>
+        <div class="explanation">{{ a.explanation }}</div>
+        <div class="card-meta">
+          <span>{{ a.event.altitude | number:'1.0-0' }} ft</span>
+          <span>{{ a.event.speed | number:'1.0-0' }} kts</span>
+          <span>{{ a.event.heading | number:'1.0-0' }}°</span>
+        </div>
+      </div>
+    </aside>
+
+    <div id="map"></div>
+
+    <!-- Anomaly feed (right) -->
+    <aside class="panel">
+      <div class="section-header">
+        <span>Anomaly feed</span>
+        <span class="count">{{ visibleAnomalyCount }} / latest 100</span>
+      </div>
+
+      <div *ngIf="loading" class="empty-state">Connecting...</div>
+      <div *ngIf="!loading && anomalies.length === 0" class="empty-state">No anomalies detected</div>
+
+      <div *ngFor="let a of anomalies" class="anomaly-card" [ngClass]="severityClass(a.score)">
+        <div class="card-top">
+          <span class="callsign">{{ a.entity.callsign }}</span>
+          <span class="score-inline" [ngClass]="severityClass(a.score)">{{ (a.score * 100).toFixed(0) }}%</span>
+        </div>
+        <div class="explanation">{{ a.explanation }}</div>
+        <div class="card-meta">
+          <span>{{ a.event.altitude | number:'1.0-0' }} ft</span>
+          <span>{{ a.event.speed | number:'1.0-0' }} kts</span>
+          <span>{{ a.event.heading | number:'1.0-0' }}°</span>
+          <span>{{ a.flaggedAt | date:'HH:mm:ss' }}</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
